@@ -2,12 +2,12 @@
 
 ## Hardware Inventory
 * **Microcontroller:** Seeed Studio XIAO ESP32-S3
-* **Transceiver Modules:** EBYTE E22-900T (2 units, LoRa SX1262 based)
+* **Transceiver Modules:** EBYTE E22-900T22D (2 units, based on Semtech SX1262 LoRa core)
 * **Antennas:** 868 MHz LoRa Antennas (2 units)
 * **Prototyping:** Breadboards (2 units) & jumper wires
 
 ## Development & Testing Environment
-* **Firmware IDE:** Visual Studio Code (PlatformIO / Arduino IDE)
+* **Firmware IDE:** Visual Studio Code (PlatformIO)
 * **Serial Debugging & Monitoring:** PuTTY
 
 ## Power & Deployment Notes

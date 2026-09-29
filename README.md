@@ -5,6 +5,7 @@
 ![status](https://img.shields.io/badge/status-early%20prototype-orange)
 ![license](https://img.shields.io/badge/license-MIT-blue)
 ![hardware](https://img.shields.io/badge/hardware-XIAO%20ESP32S3%20%2B%20E22--900T22D-green)
+![stack](https://img.shields.io/badge/stack-FastAPI%20%2B%20aiogram-green)
 
 🇬🇧 [English](#english) · 🇯🇵 [日本語](#日本語) · 🇷🇺 [Русский](#русский)
 

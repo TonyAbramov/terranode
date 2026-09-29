@@ -1,0 +1,1242 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <title>Threat Management Dashboard</title>
+    
+    <!-- External Fonts / 外部フォント -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Dela+Gothic+One&family=Inter:wght@400;700&display=swap" rel="stylesheet">
+    
+    <!-- Leaflet GIS Map Library / Leaflet GISマップライブラリ -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    
+    <style>
+        /* General Layout Setup / 全体レイアウト設定 */
+        body { font-family: 'Inter', sans-serif; background: #ffffff; color: #111; margin: 0; padding: 20px; box-sizing: border-box; height: 100vh; overflow: hidden; display: flex; flex-direction: column; }
+        
+        .header-container { display: flex; justify-content: space-between; align-items: flex-end; margin-bottom: 15px; flex-shrink: 0; }
+        .main-title { font-family: 'Dela Gothic One', sans-serif; color: #f27200; font-size: 24px; line-height: 1.2; margin: 0; }
+        
+        /* Tab Navigation / タブナビゲーション */
+        .tabs-nav { display: flex; gap: 8px; }
+        .tab-btn { background: #e6e6e6; border: 2px solid #ccc; padding: 6px 14px; border-radius: 8px; font-weight: 700; font-size: 13px; cursor: pointer; transition: all 0.2s ease; font-family: 'Inter', sans-serif; }
+        .tab-btn:hover { background: #fff; border-color: #f27200; color: #f27200; transform: translateY(-2px); box-shadow: 0 4px 8px rgba(242, 114, 0, 0.15); }
+        .tab-btn.active { background: #f27200; color: #fff; border-color: #b35400; transform: none; box-shadow: none; }
+        .tab-btn.warning-tab:hover { border-color: #dc3545; color: #dc3545; box-shadow: 0 4px 8px rgba(220, 53, 69, 0.15); }
+        .tab-btn.warning-tab.active { background: #dc3545; color: #fff; border-color: #a71d2a; transform: none; box-shadow: none; }
+
+        /* Unified 3-Column Grid / 統合3カラムグリッド */
+        #main-grid { display: grid; grid-template-columns: 340px 1fr 360px; gap: 20px; flex: 1; min-height: 0; }
+
+        /* Panel is now FIXED - no full scroll */
+        .panel { background: #e6e6e6; border-radius: 12px; padding: 15px; display: flex; flex-direction: column; overflow: hidden; }
+        
+        .panel-title { font-family: 'Dela Gothic One', sans-serif; font-size: 18px; margin-bottom: 5px; line-height: 1.3; color: #111; }
+        .panel-subtitle { font-size: 13px; margin-bottom: 15px; font-family: 'Inter', sans-serif; }
+        
+        /* Dynamic Tab Panels / ダイナミックタブパネル */
+        .sidebar-section { display: none; flex-direction: column; flex: 1; min-height: 0; }
+        .sidebar-section.active { display: flex; }
+        
+        /* Protection: Headers never shrink */
+        .sidebar-section > *:not(.scroll-area) { flex-shrink: 0; }
+
+        /* Universal Scrollable Area / 共通スクロールエリア */
+        .scroll-area {
+            flex: 1;
+            overflow-y: auto;
+            padding-right: 6px;
+            min-height: 0;
+            box-sizing: border-box;
+        }
+        .scroll-area::-webkit-scrollbar { width: 6px; }
+        .scroll-area::-webkit-scrollbar-thumb { background: #ccc; border-radius: 3px; }
+        .scroll-area::-webkit-scrollbar-thumb:hover { background: #aaa; }
+
+        #nodes-container { padding-left: 2px; } /* Specific internal padding */
+        
+        /* Device Cards Base Styling / デバイスカード基本スタイル */
+        .device-card { 
+            background: #d4edda; 
+            border: 2px solid #222; 
+            border-radius: 12px; 
+            padding: 12px; 
+            margin-bottom: 12px; 
+            cursor: pointer; 
+            box-sizing: border-box;
+            width: 100%;
+            transition: transform 0.2s cubic-bezier(0.2, 0, 0, 1), border-color 0.2s ease, box-shadow 0.2s ease; 
+        }
+
+        /* Hover Effect */
+        .device-card:hover { 
+            transform: scale(1.015); 
+            box-shadow: 0 4px 10px rgba(242, 114, 0, 0.25); 
+            border-color: #f27200; 
+        }
+
+        /* Active Selected State / アクティブ選択状態 */
+        .device-card.selected { 
+            border-color: #f27200; 
+            box-shadow: 0 0 0 1px #f27200, 0 4px 12px rgba(242, 114, 0, 0.25); 
+            background: #fff; 
+            transform: scale(1.015); 
+        }
+        .device-card.offline { background: #f8d7da; } 
+        
+        .card-header { display: flex; justify-content: space-between; font-weight: 700; font-size: 14px; margin-bottom: 8px; }
+        .card-footer { display: flex; justify-content: space-between; font-size: 12px; font-weight: 700; align-items: center; }
+        .card-coords { font-size: 11px; color: #555; margin-bottom: 8px; font-family: monospace; }
+        .status-dot { height: 10px; width: 10px; background-color: #28a745; border-radius: 50%; display: inline-block; margin-right: 5px; }
+        .device-card.offline .status-dot { background-color: #dc3545; }
+        
+        /* Map Marker Hover Effects / マップマーカーホバー効果 */
+        .custom-router-icon div, .custom-node-icon div, .custom-anomaly-icon div {
+            transition: transform 0.2s ease, box-shadow 0.2s ease;
+        }
+        .custom-router-icon div:hover, .custom-node-icon div:hover, .custom-anomaly-icon div:hover {
+            transform: scale(1.35);
+            box-shadow: 0 0 14px rgba(242, 114, 0, 0.95) !important;
+            z-index: 9999 !important;
+        }
+
+        #router-block { margin-bottom: 10px; padding: 4px 12px 10px 2px; border-bottom: 2px dashed #ccc; box-sizing: border-box; }
+        .center-col { display: flex; flex-direction: column; }
+        #map-wrapper { flex: 1; display: flex; flex-direction: column; background: #e6e6e6; border-radius: 12px; padding: 15px; min-height: 0; }
+        #map { flex: 1; border-radius: 8px; border: 1px solid #ccc; min-height: 300px; }
+        .leaflet-control-attribution { display: none !important; }
+        
+        /* Custom Layer Control Styling / レイヤーコントロールのカスタムスタイル */
+        .leaflet-control-layers { border-radius: 8px !important; font-family: 'Inter', sans-serif; font-size: 12px; font-weight: bold; border: 2px solid #222 !important; box-shadow: 0 4px 10px rgba(0,0,0,0.15) !important; }
+
+        /* Form Controls / フォーム入力コントロール */
+        .form-group { margin-bottom: 12px; }
+        .form-group label { display: block; font-size: 11px; font-weight: bold; margin-bottom: 4px; color: #444; }
+        .form-group input, .form-group select, .form-group textarea { width: 100%; padding: 8px; border: 1px solid #ccc; border-radius: 6px; box-sizing: border-box; font-family: inherit; font-size: 13px; transition: all 0.2s ease; }
+        .form-group input:hover, .form-group select:hover, .form-group textarea:hover { border-color: #f27200; }
+        .form-group input:focus, .form-group select:focus, .form-group textarea:focus { border-color: #f27200; outline: none; box-shadow: 0 0 0 2px rgba(242, 114, 0, 0.2); }
+        .form-row { display: flex; gap: 8px; }
+        
+        /* Action Buttons / 操作ボタン */
+        .btn { display: block; width: 100%; text-align: center; padding: 10px; margin-bottom: 10px; border-radius: 8px; font-weight: 700; font-size: 13px; cursor: pointer; border: 1px solid #222; box-sizing: border-box; transition: all 0.2s ease; }
+        .btn:hover { transform: translateY(-2px); box-shadow: 0 4px 8px rgba(0,0,0,0.15); }
+        
+        .btn-confirm { background: #f27200; color: #fff; border: 2px solid #b35400; }
+        .btn-confirm:hover { background: #ff851a; border-color: #cc5f00; }
+        
+        .btn-save { background: #28a745; color: #fff; border: 2px solid #1e7e34; }
+        .btn-save:hover { background: #34ce57; border-color: #218838; }
+        
+        .btn-pick { background: #007bff; color: #fff; border: 2px solid #0056b3; }
+        .btn-pick:hover { background: #3395ff; border-color: #0062cc; }
+        .btn-pick.active-mode { background: #dc3545; border-color: #a71d2a; animation: pulse 1.5s infinite; }
+
+        @keyframes pulse {
+            0% { box-shadow: 0 0 0 0 rgba(220, 53, 69, 0.7); }
+            70% { box-shadow: 0 0 0 8px rgba(220, 53, 69, 0); }
+            100% { box-shadow: 0 0 0 0 rgba(220, 53, 69, 0); }
+        }
+        
+        .btn-danger { background: #dc3545; color: #fff; border: 2px solid #a71d2a; margin-top: 10px; }
+        .btn-danger:hover { background: #e4606d; border-color: #bd2130; }
+        
+        .btn-add { background: transparent; color: #111; border: 2px dashed #111; margin-bottom: 15px; }
+        .btn-add:hover { border-color: #f27200; color: #f27200; background: rgba(242, 114, 0, 0.05); }
+        
+        /* Modal Overlay / モーダルオーバーレイ */
+        .modal { display: none; position: fixed; z-index: 9999; left: 0; top: 0; width: 100%; height: 100%; background-color: rgba(0,0,0,0.5); align-items: center; justify-content: center; }
+        .modal-content { background-color: #fefefe; padding: 20px; border: 2px solid #222; border-radius: 12px; width: 400px; box-shadow: 0 5px 15px rgba(0,0,0,0.3); position: relative; }
+        .close { color: #aaa; float: right; font-size: 28px; font-weight: bold; cursor: pointer; position: absolute; top: 10px; right: 15px; line-height: 1; }
+        .close:hover { color: #f27200; }
+        
+        .settings-section { background: #fff; border: 1px solid #ccc; border-radius: 8px; padding: 12px; margin: 10px 0; }
+        .settings-title { font-weight: bold; font-size: 13px; margin-bottom: 10px; border-bottom: 1px solid #eee; padding-bottom: 5px; }
+
+        /* Anomaly Cards in Feed / 異常報告カード */
+        .anomaly-card { background: #fff; border: 1px solid #ccc; border-radius: 8px; padding: 10px; margin-bottom: 10px; display: flex; gap: 10px; align-items: flex-start; transition: all 0.2s ease; cursor: pointer; }
+        .anomaly-card:hover { transform: translateY(-2px); box-shadow: 0 4px 8px rgba(0,0,0,0.08); border-color: #dc3545; }
+        .anomaly-img { width: 75px; height: 75px; border-radius: 6px; object-fit: cover; background: #555; flex-shrink: 0; }
+        .anomaly-info { flex: 1; font-size: 11px; }
+        .anomaly-header { font-weight: bold; font-size: 13px; margin-bottom: 3px; display: flex; justify-content: space-between; }
+        .badge { padding: 2px 6px; border-radius: 4px; font-size: 10px; font-weight: bold; color: #fff; }
+        .badge-high { background: #dc3545; }
+        .badge-med { background: #f27200; }
+        .badge-low { background: #ffc107; color: #111; }
+    </style>
+</head>
+<body>
+
+    <!-- Header & Tab Navigation / ヘッダーとタブナビゲーション -->
+    <div class="header-container">
+        <div class="main-title">
+            Threat Management Dashboard<br>
+            <span style="font-size: 18px;">侵略的植物・脅威管理ダッシュボード</span>
+        </div>
+        <div class="tabs-nav">
+            <button class="tab-btn active" onclick="switchDashboardTab('nodes', this)">📍 Map & Nodes / マップとノード</button>
+            <button class="tab-btn warning-tab" onclick="switchDashboardTab('report', this)">⚠️ Report Eco Anomaly / 異常報告</button>
+            <button class="tab-btn" onclick="switchDashboardTab('analytics', this)">📊 Analytics / 分析</button>
+        </div>
+    </div>
+
+    <!-- MAIN UNIFIED GRID LAYOUT / 統合3カラムレイアウト -->
+    <div id="main-grid">
+        
+        <!-- LEFT SIDEBAR PANEL / 左側パネル -->
+        <div class="panel" id="left-panel">
+            
+            <!-- Tab 1 Left: Nodes & Network -->
+            <div id="left-tab-nodes" class="sidebar-section active">
+                <div class="panel-title">Network & Nodes<br><span style="font-size:13px; font-weight:normal;">ネットワークとノード</span></div>
+                <button class="btn btn-add" onclick="openAddNodeModal()">+ Add Node / ノードを追加</button>
+                <div id="router-block">
+                    <div id="card-router" class="device-card selected" onclick="selectDevice('router')" onmouseenter="highlightMarker('router', true)" onmouseleave="highlightMarker('router', false)">
+                        <div class="card-header">
+                            <span>ROUTER (Gateway)</span>
+                            <span>⚡ 100% 🔋</span>
+                        </div>
+                        <div class="card-coords" id="router-coords">📍 43.6100 °N, 145.2600 °E</div>
+                        <div class="card-footer">
+                            <span><span class="status-dot"></span>Online</span>
+                            <span>High 📶</span>
+                        </div>
+                    </div>
+                </div>
+                <div class="panel-subtitle" style="margin-bottom: 5px; font-weight: bold;">LoRa Remote Devices:</div>
+                <!-- This section scrolls safely -->
+                <div id="nodes-container" class="scroll-area">
+                    <p style="color: #666; font-size: 13px;">Waiting for telemetry...</p>
+                </div>
+            </div>
+
+            <!-- Tab 2 Left: Anomaly Form -->
+            <div id="left-tab-report" class="sidebar-section">
+                <div class="panel-title" style="color: #dc3545;">⚠️ Report Anomaly<br><span style="font-size: 13px; font-weight:normal; color:#111;">生態系異常の報告</span></div>
+                <div class="panel-subtitle">Fill details or click directly on the central map.</div>
+
+                <!-- Form itself is now the scroll area -->
+                <form id="reportAnomalyForm" class="scroll-area" onsubmit="submitAnomalyReport(event)" style="display: flex; flex-direction: column; gap: 8px;">
+                    <button type="button" id="btn-toggle-pick" class="btn btn-pick" onclick="toggleMapPickMode()">
+                        🗺️ Click Map to Pick Location / マップ上をクリック
+                    </button>
+
+                    <div class="settings-section" style="margin: 0;">
+                        <div class="settings-title">📍 Target Coordinates</div>
+                        <div class="form-row">
+                            <div class="form-group" style="flex:1; margin:0;">
+                                <label>Lat (°N):</label>
+                                <input type="number" step="0.0001" id="anomaly-lat" value="43.6120" required>
+                            </div>
+                            <div class="form-group" style="flex:1; margin:0;">
+                                <label>Lng (°E):</label>
+                                <input type="number" step="0.0001" id="anomaly-lng" value="145.2540" required>
+                            </div>
+                        </div>
+                        <div class="form-group" style="margin-top: 6px; margin-bottom:0;">
+                            <label>Sector ID:</label>
+                            <input type="text" id="anomaly-sector" value="C3">
+                        </div>
+                    </div>
+
+                    <div class="settings-section" style="margin: 0;">
+                        <div class="settings-title">🌿 Threat Profile</div>
+                        <div class="form-group">
+                            <label>Species / 対象種:</label>
+                            <select id="anomaly-species" onchange="toggleCustomThreat(this.value)">
+                                <option value="Heracleum maximum">Heracleum maximum (オオハナウド)</option>
+                                <option value="Invasive Grass / Weed">Invasive Weed (外来雑草)</option>
+                                <option value="Unidentified Plant">Unidentified Plant (未確認植物)</option>
+                                <option value="Other">Other / その他</option>
+                            </select>
+                        </div>
+                        
+                        <div class="form-group" id="custom-threat-group" style="display: none; margin-top: 8px;">
+                            <label style="color: #f27200;">Specify Threat / 脅威の詳細:</label>
+                            <input type="text" id="anomaly-threat-custom" placeholder="e.g. Illegal dumping (不法投棄)">
+                        </div>
+
+                        <div class="form-group">
+                            <label>Threat Level:</label>
+                            <select id="anomaly-severity">
+                                <option value="Low">🟡 Low / 軽度</option>
+                                <option value="Medium" selected>🟧 Medium / 中度</option>
+                                <option value="Critical">🟥 Critical / 重度</option>
+                            </select>
+                        </div>
+                        <div class="form-group" style="margin-bottom:0;">
+                            <label>Field Notes:</label>
+                            <textarea id="anomaly-notes" rows="2" placeholder="Plant height, cluster size..." required></textarea>
+                        </div>
+                    </div>
+
+                    <input type="hidden" id="anomaly-photo" value="https://images.unsplash.com/photo-1596280424564-e1d18bc4ceeb?auto=format&fit=crop&q=80&w=400&h=300">
+
+                    <button type="submit" class="btn btn-danger" style="margin-top: 5px;">
+                        🚨 Submit Anomaly Report
+                    </button>
+                </form>
+            </div>
+
+            <!-- Tab 3 Left: Analytics Filter -->
+            <div id="left-tab-analytics" class="sidebar-section">
+                <div class="panel-title">Analytics Filters<br><span style="font-size:13px; font-weight:normal;">分析とフィルター</span></div>
+                <div class="scroll-area">
+                    <div class="settings-section">
+                        <div class="settings-title">🌐 Sector Scope</div>
+                        <div class="form-group">
+                            <label>Active Grid Region:</label>
+                            <select><option>Notsuke Peninsula (Sectors A1-L12)</option></select>
+                        </div>
+                        <div class="form-group">
+                            <label>Time Spectrum:</label>
+                            <select><option>Last 24 Hours</option><option>Last 7 Days</option></select>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+        </div>
+
+        <!-- CENTER COLUMN: PERSISTENT CENTRAL MAP / 中央固定マップ -->
+        <div class="center-col">
+            <div id="map-wrapper">
+                <div class="panel-title" style="margin-bottom: 10px; font-size: 16px;">
+                    Spatial Monitoring Matrix<br>
+                    <span style="font-size:12px; font-weight:normal;">空間監視マトリクス</span>
+                    <span id="pick-mode-indicator" style="display:none; color:#dc3545; font-size:12px; margin-left:10px; font-family:'Inter'; font-weight:bold;">[ 📍 MAP PICK MODE ACTIVE - CLICK MAP ]</span>
+                </div>
+                <div id="map"></div>
+            </div>
+        </div>
+
+        <!-- RIGHT SIDEBAR PANEL / 右側パネル -->
+        <div class="panel" id="right-panel">
+            
+            <!-- Tab 1 Right: Node Inspector -->
+            <div id="right-tab-nodes" class="sidebar-section active">
+                <!-- Content injected dynamically via JS -->
+            </div>
+
+            <!-- Tab 2 Right: Anomalies Feed -->
+            <div id="right-tab-report" class="sidebar-section">
+                <div class="panel-title">Reported Feed<br><span style="font-size:13px; font-weight:normal;">報告された異常一覧</span></div>
+                <div class="panel-subtitle">Click card to focus map on anomaly location.</div>
+                <!-- Feed container is now the scroll area -->
+                <div id="anomalies-feed" class="scroll-area" style="display: flex; flex-direction: column;">
+                    <!-- Dynamic feed -->
+                </div>
+            </div>
+
+            <!-- Tab 3 Right: Live Logs -->
+            <div id="right-tab-analytics" class="sidebar-section">
+                <div class="panel-title">Telemetry Console<br><span style="font-size:13px; font-weight:normal;">テレメトリコンソール</span></div>
+                <div class="panel-subtitle">Real-time packet logs from LoRa mesh nodes.</div>
+                
+                <div class="scroll-area">
+                    <div style="background: #111; color: #00ff00; font-family: monospace; padding: 10px; border-radius: 6px; font-size: 11px; min-height: 100%;">
+                        [SYS] Integrated Map initialized.<br>
+                        [SUCC] Persistent storage synchronized.<br>
+                        [SUCC] Mesh network active.<br>
+                        [SCAN] Polling sector C3...<br>
+                        [INFO] Gateway link stable.
+                    </div>
+                </div>
+            </div>
+
+        </div>
+
+    </div>
+
+    <!-- Add Node Modal / ノード追加モーダル -->
+    <div id="addNodeModal" class="modal">
+        <div class="modal-content">
+            <span class="close" onclick="closeModal('addNodeModal')">&times;</span>
+            <div class="panel-title" style="font-size: 16px; margin-bottom: 12px;">Add New Node / ノードを追加</div>
+            <form id="addNodeForm" onsubmit="submitNewNode(event)">
+                <div class="form-group">
+                    <label>Node ID / Name:</label>
+                    <input type="text" id="new-node-id" placeholder="e.g., Node-03" required>
+                </div>
+                <div class="form-group">
+                    <label>Device Hardware Type:</label>
+                    <select id="new-node-type">
+                        <option value="ESP32-CAM">ESP32-CAM (Vision Node)</option>
+                        <option value="ESP32">ESP32 (Environmental Sensor)</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Purpose / Target:</label>
+                    <input type="text" id="new-node-purpose" placeholder="e.g., Heracleum maximum monitoring" required>
+                </div>
+                <div class="form-row">
+                    <div class="form-group" style="flex:1;">
+                        <label>Lat (°N):</label>
+                        <input type="number" step="0.0001" id="new-node-lat" value="43.6150" required>
+                    </div>
+                    <div class="form-group" style="flex:1;">
+                        <label>Lng (°E):</label>
+                        <input type="number" step="0.0001" id="new-node-lng" value="145.2700" required>
+                    </div>
+                </div>
+                <button type="button" class="btn btn-pick" style="margin-bottom: 12px;"
+                        onclick="openLocationPicker(
+                            parseFloat(document.getElementById('new-node-lat').value),
+                            parseFloat(document.getElementById('new-node-lng').value),
+                            (lat, lng) => {
+                                document.getElementById('new-node-lat').value = lat;
+                                document.getElementById('new-node-lng').value = lng;
+                            }
+                        )">
+                    🗺️ Pick on Map / マップで選択
+                </button>
+                <button type="submit" class="btn btn-confirm" style="margin-top:10px;">Register Device / 登録</button>
+            </form>
+        </div>
+    </div>
+
+    <!-- Location Picker Modal (mini map) / 位置選択モーダル（ミニマップ） -->
+    <div id="locationPickerModal" class="modal">
+        <div class="modal-content" style="width: 480px;">
+            <span class="close" onclick="closeLocationPicker()">&times;</span>
+            <div class="panel-title" style="font-size: 16px; margin-bottom: 4px;">Pick Location / 位置を選択</div>
+            <div class="panel-subtitle" style="margin-bottom: 10px;">
+                Click the map to place the pin / マップをクリックしてピンを設置してください
+            </div>
+            <div id="location-picker-map" style="height: 320px; border-radius: 8px; border: 1px solid #ccc;"></div>
+            <div class="form-row" style="margin-top: 10px;">
+                <div class="form-group" style="flex:1; margin:0;">
+                    <label>Lat (°N):</label>
+                    <input type="number" step="0.0001" id="picker-lat" readonly>
+                </div>
+                <div class="form-group" style="flex:1; margin:0;">
+                    <label>Lng (°E):</label>
+                    <input type="number" step="0.0001" id="picker-lng" readonly>
+                </div>
+            </div>
+            <div class="form-row" style="margin-top: 12px;">
+                <button type="button" class="btn btn-save" style="margin:0;" onclick="confirmLocationPicker()">✅ Confirm / 確認</button>
+                <button type="button" class="btn btn-danger" style="margin:0;" onclick="closeLocationPicker()">❌ Cancel / キャンセル</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // --- 1. DATA & LOCAL STORAGE PERSISTENCE / データ永続化 ---
+        const DEFAULT_ROUTER = { lat: 43.6100, lng: 145.2600 };
+        const DEFAULT_NODES = {};
+        const DEFAULT_ANOMALIES = [
+            {
+                id: 1, species: "Heracleum maximum", severity: "Critical", lat: 43.6120, lng: 145.2540, sector: "C3",
+                notes: "Massive cluster discovered near the shoreline path.",
+                photo: "https://images.unsplash.com/photo-1596280424564-e1d18bc4ceeb?auto=format&fit=crop&q=80&w=400&h=300"
+            }
+        ];
+
+        let routerData = JSON.parse(localStorage.getItem('routerData')) || DEFAULT_ROUTER;
+        let globalNodes = JSON.parse(localStorage.getItem('globalNodes')) || DEFAULT_NODES;
+        let reportedAnomalies = JSON.parse(localStorage.getItem('reportedAnomalies')) || DEFAULT_ANOMALIES;
+
+        function saveDataToStorage() {
+            localStorage.setItem('routerData', JSON.stringify(routerData));
+            localStorage.setItem('globalNodes', JSON.stringify(globalNodes));
+            localStorage.setItem('reportedAnomalies', JSON.stringify(reportedAnomalies));
+        }
+
+        // --- 2. BACKEND API SYNC FUNCTIONS / バックエンドAPI同期機能 ---
+        
+        // Fetch nodes from the backend on page load / ページ読み込み時にバックエンドからノードを取得する
+	const API_BASE_URL = 'http://127.0.0.1:8000';
+
+        async function fetchNodes() {
+            try {
+                const response = await fetch(`${API_BASE_URL}/api/nodes`);
+                if (!response.ok) throw new Error("Server error");
+                globalNodes = await response.json();
+                renderMapMarkers();
+                renderLeftPanelNodes();
+            } catch (error) {
+                console.error("Failed to fetch nodes:", error);
+            }
+        }
+
+        // NOTE: nodeObj here uses the LOCAL field names (type, purpose, rssi)
+        // used everywhere else in the dashboard UI, not the backend's field
+        // names (target, comment). This function is the single place where
+        // the two are mapped onto each other.
+        // 注: nodeObj はダッシュボードUI全体で使われているローカルの
+        // フィールド名（type, purpose, rssi）であり、バックエンドの
+        // フィールド名（target, comment）ではない。ここで両者を対応付ける。
+        async function saveNodeToBackend(nodeId, nodeObj) {
+            try {
+                await fetch(`${API_BASE_URL}/api/nodes`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        id: nodeId,
+                        type: nodeObj.type || "ESP32",
+                        lat: parseFloat(nodeObj.lat),
+                        lng: parseFloat(nodeObj.lng),
+                        target: nodeObj.purpose || "Unknown",
+                        status: nodeObj.status || "Online",
+                        battery: parseInt(nodeObj.battery) || 100,
+                        // Always (re)compute the sector from coordinates here
+                        // instead of sending a stale/placeholder value — the
+                        // backend grid is kept identical to getSectorName().
+                        // 常に座標からセクターを再計算する。バックエンドの
+                        // グリッドは getSectorName() と同一に保たれている。
+                        sector: getSectorName(parseFloat(nodeObj.lat), parseFloat(nodeObj.lng)),
+                        comment: nodeObj.comment || nodeObj.purpose || "",
+                        rssi: nodeObj.rssi || "Good"
+                    })
+                });
+            } catch (error) {
+                console.error(`Error saving node:`, error);
+            }
+        }
+
+        // Delete node from backend / バックエンドからノードを削除する
+        async function deleteNodeFromBackend(nodeId) {
+            try {
+                const response = await fetch(`${API_BASE_URL}/api/nodes/${nodeId}`, { method: 'DELETE' });
+                if (response.ok) {
+                    console.log(`Node ${nodeId} permanently deleted / ノード ${nodeId} が完全に削除されました`);
+                }
+            } catch (error) {
+                console.error(`Error deleting node ${nodeId}:`, error);
+            }
+        }
+
+        // Sync the gateway/router location+info to the backend (and, from
+        // there, to Telegram). Previously "Save Gateway Location" only ever
+        // touched localStorage — the backend and Telegram never learned
+        // about router changes.
+        // ゲートウェイ（ルーター）の位置・情報をバックエンド（および
+        // Telegram）へ同期する。以前は「Save Gateway Location」が
+        // localStorageのみを更新しており、バックエンドとTelegramには
+        // 一切反映されていなかった。
+        async function saveRouterToBackend(router) {
+            try {
+                await fetch(`${API_BASE_URL}/api/router`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        lat: parseFloat(router.lat),
+                        lng: parseFloat(router.lng),
+                        comment: router.comment || "Base Station Relay"
+                    })
+                });
+            } catch (error) {
+                console.error(`Error saving router:`, error);
+            }
+        }
+
+        // Reset the gateway back to its default position (there is only one
+        // gateway, so unlike a node it can't be deleted outright).
+        // ゲートウェイを既定位置へリセットする（ゲートウェイは1つのみのため
+        // ノードのように完全には削除できない）。
+        window.deleteRouterLocation = async function() {
+            if (!confirm('Reset gateway to its default location? / ゲートウェイを既定位置にリセットしますか？')) return;
+            try {
+                await fetch(`${API_BASE_URL}/api/router`, { method: 'DELETE' });
+            } catch (error) {
+                console.error(`Error resetting router:`, error);
+            }
+            routerData = { ...DEFAULT_ROUTER };
+            saveDataToStorage();
+            renderMapMarkers();
+            updateRightPanelNodeInspector();
+        };
+
+        // Push a new anomaly report to the backend, so it also reaches
+        // Telegram via the bot's push notification.
+        // 異常報告をバックエンドへ送信し、ボットのプッシュ通知経由で
+        // Telegramにも反映されるようにする。
+        // Returns the backend-assigned integer id (or null on failure), so
+        // the caller can reconcile it with the temporary local id
+        // (Date.now()) used when the card was first created.
+        // バックエンド側で採番されたID（失敗時はnull）を返す。呼び出し元は
+        // カード作成時に仮で振られたローカルID（Date.now()）をこれで
+        // 置き換える。
+        async function saveAnomalyToBackend(anomalyObj) {
+            try {
+                const response = await fetch(`${API_BASE_URL}/api/anomalies`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        species: anomalyObj.species,
+                        severity: anomalyObj.severity,
+                        sector: anomalyObj.sector,
+                        lat: parseFloat(anomalyObj.lat),
+                        lng: parseFloat(anomalyObj.lng),
+                        notes: anomalyObj.notes
+                    })
+                });
+                const result = await response.json();
+                return result?.data?.id ?? null;
+            } catch (error) {
+                console.error(`Error saving anomaly:`, error);
+                return null;
+            }
+        }
+
+        // Update an existing anomaly's location on the backend (used by
+        // "Change Location"). / 既存の異常報告の位置をバックエンドで更新する。
+        async function updateAnomalyOnBackend(anomalyObj) {
+            try {
+                await fetch(`${API_BASE_URL}/api/anomalies/${anomalyObj.id}`, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        species: anomalyObj.species,
+                        severity: anomalyObj.severity,
+                        sector: anomalyObj.sector,
+                        lat: parseFloat(anomalyObj.lat),
+                        lng: parseFloat(anomalyObj.lng),
+                        notes: anomalyObj.notes
+                    })
+                });
+            } catch (error) {
+                console.error(`Error updating anomaly:`, error);
+            }
+        }
+
+        async function deleteAnomalyFromBackend(anomalyId) {
+            try {
+                await fetch(`${API_BASE_URL}/api/anomalies/${anomalyId}`, { method: 'DELETE' });
+            } catch (error) {
+                console.error(`Error deleting anomaly:`, error);
+            }
+        }
+
+
+        // --- 3. UNIFIED DASHBOARD TAB SWITCHING / タブ切り替え ---
+        let currentTab = 'nodes'; 
+        let isMapPickMode = false;
+
+        window.switchDashboardTab = function(tabName, btnElement) {
+            currentTab = tabName;
+            
+            if (!btnElement) {
+                const tabIndices = { 'nodes': 0, 'report': 1, 'analytics': 2 };
+                btnElement = document.querySelectorAll('.tab-btn')[tabIndices[tabName]];
+            }
+
+            document.querySelectorAll('.tab-btn').forEach(el => el.classList.remove('active'));
+            if (btnElement) btnElement.classList.add('active');
+
+            document.querySelectorAll('#left-panel .sidebar-section').forEach(el => el.classList.remove('active'));
+            document.getElementById(`left-tab-${tabName}`).classList.add('active');
+
+            document.querySelectorAll('#right-panel .sidebar-section').forEach(el => el.classList.remove('active'));
+            document.getElementById(`right-tab-${tabName}`).classList.add('active');
+
+            if (isMapPickMode && tabName !== 'report') {
+                toggleMapPickMode(false);
+            }
+        };
+
+        // --- 4. LEAFLET MAP & LAYERS INITIALIZATION / マップ初期化 ---
+        var map = L.map('map').setView([routerData.lat, routerData.lng], 12);
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19 }).addTo(map);
+
+        var nodeLayerGroup = L.layerGroup().addTo(map);
+        var anomalyLayerGroup = L.layerGroup().addTo(map);
+
+        var overlayMaps = {
+            "📡 Network Nodes / ネットワークノード": nodeLayerGroup,
+            "⚠️ Eco Anomalies / 生態系異常": anomalyLayerGroup
+        };
+        L.control.layers(null, overlayMaps, { collapsed: false, position: 'topright' }).addTo(map);
+
+        var nodeMarkers = {};
+        var anomalyMarkers = {};
+        var selectedItem = { type: 'router', id: 'router' };
+
+        var routerIcon = L.divIcon({
+            className: 'custom-router-icon',
+            html: `<div style="background-color: #007bff; color: white; border: 2px solid white; border-radius: 50%; width: 28px; height: 28px; display: flex; align-items: center; justify-content: center; font-size: 14px; box-shadow: 0 0 6px rgba(0,0,0,0.6);">📡</div>`,
+            iconSize: [28, 28], iconAnchor: [14, 14]
+        });
+        var nodeIcon = L.divIcon({
+            className: 'custom-node-icon',
+            html: `<div style="background-color: #28a745; color: white; border: 2px solid white; border-radius: 50%; width: 24px; height: 24px; display: flex; align-items: center; justify-content: center; font-size: 12px; box-shadow: 0 0 5px rgba(0,0,0,0.5);">📟</div>`,
+            iconSize: [24, 24], iconAnchor: [12, 12]
+        });
+
+        function getAnomalyIcon(severity) {
+            let color = severity === 'Critical' ? '#dc3545' : (severity === 'Medium' ? '#f27200' : '#ffc107');
+            return L.divIcon({
+                className: 'custom-anomaly-icon',
+                html: `<div style="background-color: ${color}; color: white; border: 2px solid white; border-radius: 50%; width: 26px; height: 26px; display: flex; align-items: center; justify-content: center; font-size: 13px; box-shadow: 0 0 6px rgba(0,0,0,0.6);">🚨</div>`,
+                iconSize: [26, 26], iconAnchor: [13, 13]
+            });
+        }
+
+        var routerMarker = L.marker([routerData.lat, routerData.lng], { icon: routerIcon }).addTo(nodeLayerGroup).bindPopup("<b>LoRaWAN Gateway Router</b>");
+        routerMarker.on('click', () => selectDevice('router'));
+
+        function drawGridOnMap(targetMap) {
+            const startLat = 43.52, endLat = 43.68;
+            const startLng = 145.12, endLng = 145.40;
+            const latSteps = 12, lngSteps = 12;
+            const latDelta = (endLat - startLat) / latSteps;
+            const lngDelta = (endLng - startLng) / lngSteps;
+            const cols = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L'];
+
+            for (let r = 0; r < latSteps; r++) {
+                for (let c = 0; c < lngSteps; c++) {
+                    let south = startLat + r * latDelta;
+                    let north = startLat + (r + 1) * latDelta;
+                    let west = startLng + c * lngDelta;
+                    let east = startLng + (c + 1) * lngDelta;
+                    let sectorName = `${cols[c]}${latSteps - r}`;
+
+                    L.rectangle([[south, west], [north, east]], {
+                        color: '#f27200', weight: 0.8, dashArray: '2, 3', fillColor: '#f27200', fillOpacity: 0.03, interactive: false
+                    }).addTo(targetMap);
+
+                    var labelIcon = L.divIcon({
+                        className: 'grid-label-icon',
+                        html: `<div style="font-family:'Dela Gothic One', sans-serif; font-size: 9px; color: rgba(242, 114, 0, 0.45); pointer-events: none;">${sectorName}</div>`,
+                        iconSize: [30, 15], iconAnchor: [15, 7.5]
+                    });
+                    L.marker([(south + north) / 2, (west + east) / 2], { icon: labelIcon, interactive: false }).addTo(targetMap);
+                }
+            }
+        }
+        drawGridOnMap(map);
+
+        // --- 5. MAP PICK MODE / マップ位置選択モード ---
+        window.toggleMapPickMode = function(forceState) {
+            isMapPickMode = (forceState !== undefined) ? forceState : !isMapPickMode;
+            const btn = document.getElementById('btn-toggle-pick');
+            const indicator = document.getElementById('pick-mode-indicator');
+
+            if (isMapPickMode) {
+                btn.classList.add('active-mode');
+                btn.innerText = '❌ Cancel Map Pick / キャンセル';
+                indicator.style.display = 'inline';
+            } else {
+                btn.classList.remove('active-mode');
+                btn.innerText = '🗺️ Click Map to Pick Location / マップ上をクリック';
+                indicator.style.display = 'none';
+            }
+        };
+
+        map.on('click', function(e) {
+            if (isMapPickMode) {
+                const lat = parseFloat(e.latlng.lat.toFixed(4));
+                const lng = parseFloat(e.latlng.lng.toFixed(4));
+
+                document.getElementById('anomaly-lat').value = lat;
+                document.getElementById('anomaly-lng').value = lng;
+                document.getElementById('anomaly-sector').value = getSectorName(lat, lng);
+
+                toggleMapPickMode(false);
+            }
+        });
+
+        function getSectorName(lat, lng) {
+            const startLat = 43.52, endLat = 43.68;
+            const startLng = 145.12, endLng = 145.40;
+            const latSteps = 12, lngSteps = 12;
+            const latDelta = (endLat - startLat) / latSteps;
+            const lngDelta = (endLng - startLng) / lngSteps;
+            const cols = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L'];
+
+            let c = Math.floor((lng - startLng) / lngDelta);
+            let r = Math.floor((lat - startLat) / latDelta);
+            c = Math.max(0, Math.min(lngSteps - 1, c));
+            r = Math.max(0, Math.min(latSteps - 1, r));
+
+            return `${cols[c]}${latSteps - r}`;
+        }
+
+        // --- 5b. LOCATION PICKER MODAL (mini map) / 位置選択モーダル（ミニマップ） ---
+        // Shared by: Add Node modal, Router "Change Location", Node "Change
+        // Location". Click the mini map to drop/move a pin, then confirm.
+        // 「ノード追加」「ルーターの位置変更」「ノードの位置変更」で共用。
+        // ミニマップをクリックしてピンを設置・移動し、確認ボタンで確定する。
+        let pickerMap = null;
+        let pickerMarker = null;
+        let pickerConfirmCallback = null;
+
+        function initPickerMapIfNeeded() {
+            if (pickerMap) return;
+            pickerMap = L.map('location-picker-map');
+            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19 }).addTo(pickerMap);
+            drawGridOnMap(pickerMap);
+            pickerMap.on('click', (e) => {
+                setPickerMarker(e.latlng.lat, e.latlng.lng);
+            });
+        }
+
+        function setPickerMarker(lat, lng) {
+            lat = parseFloat(lat.toFixed(4));
+            lng = parseFloat(lng.toFixed(4));
+            if (pickerMarker) {
+                pickerMarker.setLatLng([lat, lng]);
+            } else {
+                pickerMarker = L.marker([lat, lng], { icon: nodeIcon, draggable: true }).addTo(pickerMap);
+                pickerMarker.on('dragend', () => {
+                    const pos = pickerMarker.getLatLng();
+                    setPickerMarker(pos.lat, pos.lng);
+                });
+            }
+            document.getElementById('picker-lat').value = lat;
+            document.getElementById('picker-lng').value = lng;
+        }
+
+        // startLat/startLng: current value to preload the pin with.
+        // onConfirm(lat, lng): called once the user confirms.
+        window.openLocationPicker = function(startLat, startLng, onConfirm) {
+            if (isNaN(startLat)) startLat = 43.6100;
+            if (isNaN(startLng)) startLng = 145.2600;
+            pickerConfirmCallback = onConfirm;
+
+            openModal('locationPickerModal');
+            initPickerMapIfNeeded();
+
+            // The map container has zero size until the modal is visible,
+            // so size it correctly only after display:flex takes effect.
+            // モーダル表示前はコンテナのサイズが0のため、表示後にサイズを
+            // 再計算する必要がある。
+            setTimeout(() => {
+                pickerMap.invalidateSize();
+                pickerMap.setView([startLat, startLng], 13);
+                setPickerMarker(startLat, startLng);
+            }, 50);
+        };
+
+        window.closeLocationPicker = function() {
+            closeModal('locationPickerModal');
+            pickerConfirmCallback = null;
+        };
+
+        window.confirmLocationPicker = function() {
+            const lat = parseFloat(document.getElementById('picker-lat').value);
+            const lng = parseFloat(document.getElementById('picker-lng').value);
+            if (isNaN(lat) || isNaN(lng)) {
+                alert('Click the map to place a pin first. / まずマップをクリックしてピンを設置してください。');
+                return;
+            }
+            if (pickerConfirmCallback) pickerConfirmCallback(lat, lng);
+            closeLocationPicker();
+        };
+
+        // --- 6. MARKERS & PANEL RENDER / マーカーとパネルの同期描画 ---
+        function renderMapMarkers() {
+            Object.keys(nodeMarkers).forEach(id => nodeLayerGroup.removeLayer(nodeMarkers[id]));
+            nodeMarkers = {};
+
+            Object.keys(anomalyMarkers).forEach(id => anomalyLayerGroup.removeLayer(anomalyMarkers[id]));
+            anomalyMarkers = {};
+
+            routerMarker.setLatLng([routerData.lat, routerData.lng]);
+            document.getElementById('router-coords').innerText = `📍 ${routerData.lat} °N, ${routerData.lng} °E`;
+
+            // Use the dictionary key as the canonical node ID everywhere,
+            // not node.id — a stored record with a missing/stale "id" field
+            // (e.g. old data from before a fix, or a manual edit) would
+            // otherwise render as "undefined" and break Delete/Save.
+            // ノードIDは辞書のキーを正とする（node.id ではない）。保存データの
+            // "id" フィールドが欠落・古い場合に "undefined" と表示され、
+            // 保存・削除ができなくなる不具合の対策。
+            Object.keys(globalNodes).forEach(id => {
+                const node = globalNodes[id];
+                const marker = L.marker([node.lat, node.lng], { icon: nodeIcon }).addTo(nodeLayerGroup)
+                    .bindPopup(`<b>${id} (${node.type || 'ESP32'})</b><br>${node.purpose || node.target}`);
+                
+                marker.on('click', () => {
+                    selectDevice(id);
+                });
+                marker.on('mouseover', () => highlightCard(id, true));
+                marker.on('mouseout', () => highlightCard(id, false));
+
+                nodeMarkers[id] = marker;
+            });
+
+            reportedAnomalies.forEach(anomaly => {
+                const marker = L.marker([anomaly.lat, anomaly.lng], { icon: getAnomalyIcon(anomaly.severity) }).addTo(anomalyLayerGroup)
+                    .bindPopup(`<b>⚠️ ${anomaly.species}</b><br>Severity: ${anomaly.severity}`);
+
+                marker.on('click', () => {
+                    switchDashboardTab('report', document.querySelectorAll('.tab-btn')[1]);
+                    selectAnomaly(anomaly.id);
+                });
+
+                anomalyMarkers[anomaly.id] = marker;
+            });
+        }
+
+        function renderLeftPanelNodes() {
+            const container = document.getElementById('nodes-container');
+            const keys = Object.keys(globalNodes);
+
+            if (keys.length === 0) {
+                container.innerHTML = '<p style="color: #666; font-size: 13px;">No active remote nodes.</p>';
+                return;
+            }
+
+            let html = '';
+            keys.forEach(id => {
+                const node = globalNodes[id];
+                const isSelected = (selectedItem.type === 'node' && selectedItem.id === id) ? 'selected' : '';
+                html += `
+                    <div class="device-card ${isSelected}" data-node-id="${id}" onclick="selectDevice('${id}')" onmouseenter="highlightMarker('${id}', true)" onmouseleave="highlightMarker('${id}', false)">
+                        <div class="card-header">
+                            <span>${id} (${node.type || 'ESP32'})</span>
+                            <span>⚡ ${node.battery}% 🔋</span>
+                        </div>
+                        <div class="card-coords">📍 ${node.lat} °N, ${node.lng} °E</div>
+                        <div style="font-size: 11px; color: #333; margin-bottom: 6px;">🎯 ${node.purpose || node.target}</div>
+                        <div class="card-footer">
+                            <span><span class="status-dot"></span>${node.status}</span>
+                            <span>${node.rssi || 'Good'} 📶</span>
+                        </div>
+                    </div>
+                `;
+            });
+            container.innerHTML = html;
+        }
+
+        window.highlightMarker = function(id, isHover) {
+            let marker = (id === 'router') ? routerMarker : nodeMarkers[id];
+            if (marker && marker.getElement()) {
+                let inner = marker.getElement().querySelector('div');
+                if (inner) {
+                    inner.style.transform = isHover ? 'scale(1.35)' : 'scale(1)';
+                    inner.style.boxShadow = isHover ? '0 0 14px rgba(242, 114, 0, 0.95)' : '0 0 5px rgba(0,0,0,0.5)';
+                }
+            }
+        };
+
+        window.highlightCard = function(id, isHover) {
+            const cards = document.querySelectorAll('#nodes-container .device-card');
+            cards.forEach(card => {
+                if (card.getAttribute('data-node-id') === id && !card.classList.contains('selected')) {
+                    card.style.borderColor = isHover ? '#f27200' : '#222';
+                }
+            });
+        };
+
+        window.selectDevice = function(id) {
+            switchDashboardTab('nodes');
+
+            if (id === 'router') {
+                selectedItem = { type: 'router', id: 'router' };
+                document.getElementById('card-router').classList.add('selected');
+                map.setView([routerData.lat, routerData.lng], Math.max(map.getZoom(), 13));
+            } else {
+                selectedItem = { type: 'node', id: id };
+                document.getElementById('card-router').classList.remove('selected');
+                const node = globalNodes[id];
+                if (node) map.setView([node.lat, node.lng], Math.max(map.getZoom(), 13));
+            }
+            renderLeftPanelNodes();
+            updateRightPanelNodeInspector();
+        };
+
+        window.selectAnomaly = function(id) {
+            const anomaly = reportedAnomalies.find(a => a.id === id);
+            if (anomaly) {
+                selectedItem = { type: 'anomaly', id: id };
+                map.setView([anomaly.lat, anomaly.lng], Math.max(map.getZoom(), 14));
+            }
+        };
+
+        function updateRightPanelNodeInspector() {
+            const panel = document.getElementById('right-tab-nodes');
+
+            if (selectedItem.type === 'router') {
+                panel.innerHTML = `
+                    <div class="panel-title">Gateway Settings<br><span style="font-size:13px; font-weight:normal;">ゲートウェイ設定</span></div>
+                    <div class="panel-subtitle">Status: 🟢 <strong>Online</strong></div>
+                    <div class="scroll-area">
+                        <div class="settings-section">
+                            <div class="settings-title">⚙️ Gateway Coordinates</div>
+                            <div class="form-row">
+                                <div class="form-group" style="flex:1;">
+                                    <label>Latitude:</label>
+                                    <input type="number" step="0.0001" id="edit-lat" value="${routerData.lat}">
+                                </div>
+                                <div class="form-group" style="flex:1;">
+                                    <label>Longitude:</label>
+                                    <input type="number" step="0.0001" id="edit-lng" value="${routerData.lng}">
+                                </div>
+                            </div>
+                            <button type="button" class="btn btn-pick"
+                                    onclick="openLocationPicker(
+                                        parseFloat(document.getElementById('edit-lat').value),
+                                        parseFloat(document.getElementById('edit-lng').value),
+                                        (lat, lng) => {
+                                            document.getElementById('edit-lat').value = lat;
+                                            document.getElementById('edit-lng').value = lng;
+                                        }
+                                    )">
+                                🗺️ Change Location / 位置を変更
+                            </button>
+                            <button class="btn btn-save" onclick="saveDeviceChanges('router')">💾 Save Gateway Location / 保存</button>
+                        </div>
+                        <button class="btn btn-danger" onclick="deleteRouterLocation()">🗑️ Reset Gateway / ゲートウェイをリセット</button>
+                    </div>
+                `;
+            } else if (selectedItem.type === 'node') {
+                const node = globalNodes[selectedItem.id];
+                if (!node) { selectDevice('router'); return; }
+                const nodeId = selectedItem.id; // canonical id — see note in renderMapMarkers
+
+                panel.innerHTML = `
+                    <div class="panel-title">Node Control Panel<br><span style="font-size:13px; font-weight:normal;">ノード管理</span></div>
+                    <div class="panel-subtitle">Device ID: <strong>${nodeId}</strong></div>
+                    
+                    <div class="scroll-area">
+                        <div class="settings-section">
+                            <div class="settings-title">⚙️ Device Parameters</div>
+                            <div class="form-group">
+                                <label>Device ID:</label>
+                                <input type="text" id="edit-id" value="${nodeId}">
+                            </div>
+                            <div class="form-group">
+                                <label>Hardware Type:</label>
+                                <select id="edit-type">
+                                    <option value="ESP32-CAM" ${node.type==='ESP32-CAM'?'selected':''}>ESP32-CAM (Vision)</option>
+                                    <option value="ESP32" ${node.type==='ESP32'?'selected':''}>ESP32 (Sensors)</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label>Purpose:</label>
+                                <input type="text" id="edit-purpose" value="${node.purpose || node.target}">
+                            </div>
+                            <div class="form-row">
+                                <div class="form-group" style="flex:1;">
+                                    <label>Lat (°N):</label>
+                                    <input type="number" step="0.0001" id="edit-lat" value="${node.lat}">
+                                </div>
+                                <div class="form-group" style="flex:1;">
+                                    <label>Lng (°E):</label>
+                                    <input type="number" step="0.0001" id="edit-lng" value="${node.lng}">
+                                </div>
+                            </div>
+                            <button type="button" class="btn btn-pick"
+                                    onclick="openLocationPicker(
+                                        parseFloat(document.getElementById('edit-lat').value),
+                                        parseFloat(document.getElementById('edit-lng').value),
+                                        (lat, lng) => {
+                                            document.getElementById('edit-lat').value = lat;
+                                            document.getElementById('edit-lng').value = lng;
+                                        }
+                                    )">
+                                🗺️ Change Location / 位置を変更
+                            </button>
+                        </div>
+
+                        <button class="btn btn-save" onclick="saveDeviceChanges('${nodeId}')">💾 Save Node Settings</button>
+                        <button class="btn btn-danger" onclick="deleteNode('${nodeId}')">🗑️ Delete Node</button>
+                    </div>
+                `;
+            }
+        }
+
+        // --- 7. EDITING, DELETING & FORM SUBMISSIONS ---
+        
+        window.saveDeviceChanges = function(id) {
+            const newLat = parseFloat(document.getElementById('edit-lat').value);
+            const newLng = parseFloat(document.getElementById('edit-lng').value);
+
+            if (id === 'router') {
+                routerData.lat = newLat;
+                routerData.lng = newLng;
+                saveDataToStorage();
+                saveRouterToBackend(routerData); // Was missing entirely — router changes never reached the backend/Telegram before
+                renderMapMarkers();
+                renderLeftPanelNodes();
+                updateRightPanelNodeInspector();
+            } else {
+                const newId = document.getElementById('edit-id').value.trim();
+                const newType = document.getElementById('edit-type').value;
+                const newPurpose = document.getElementById('edit-purpose').value.trim();
+
+                if (newId !== id) {
+                    delete globalNodes[id];
+                    deleteNodeFromBackend(id); // Send delete for old ID to backend
+                    selectedItem.id = newId;
+                }
+
+                globalNodes[selectedItem.id] = {
+                    id: selectedItem.id, type: newType, purpose: newPurpose,
+                    lat: newLat, lng: newLng, battery: 90, status: "online", rssi: "Good"
+                };
+
+                saveDataToStorage();
+                saveNodeToBackend(selectedItem.id, globalNodes[selectedItem.id]); // Send update to backend
+                renderMapMarkers();
+                renderLeftPanelNodes();
+                updateRightPanelNodeInspector();
+            }
+        };
+
+        window.deleteNode = function(id) {
+            if (confirm(`Delete node ${id}?`)) {
+                delete globalNodes[id];
+                saveDataToStorage();
+                deleteNodeFromBackend(id); // Trigger backend deletion
+                renderMapMarkers();
+                selectDevice('router');
+            }
+        };
+
+        window.submitNewNode = function(e) {
+            e.preventDefault();
+            const id = document.getElementById('new-node-id').value.trim();
+            const type = document.getElementById('new-node-type').value;
+            const purpose = document.getElementById('new-node-purpose').value.trim();
+            const lat = parseFloat(document.getElementById('new-node-lat').value);
+            const lng = parseFloat(document.getElementById('new-node-lng').value);
+
+            if (globalNodes[id]) { alert('Node already exists!'); return; }
+
+            globalNodes[id] = { id, type, purpose, lat, lng, battery: 100, status: "online", rssi: "Excellent" };
+            
+            saveDataToStorage();
+            saveNodeToBackend(id, globalNodes[id]); // Send new node to backend
+            
+            closeModal('addNodeModal');
+            document.getElementById('addNodeForm').reset();
+            renderMapMarkers();
+            selectDevice(id);
+        };
+
+        window.deleteAnomaly = function(id) {
+            if (confirm('Remove this anomaly report? / この異常報告を削除しますか？')) {
+                reportedAnomalies = reportedAnomalies.filter(a => a.id !== id);
+                saveDataToStorage();
+                deleteAnomalyFromBackend(id); // Sync deletion -> Telegram push / 削除をバックエンドへ同期 -> Telegram通知
+                renderMapMarkers();
+                renderAnomaliesFeed();
+            }
+        };
+
+        // Open the shared mini-map picker to change an existing anomaly's
+        // location, then sync the new coordinates to the backend.
+        // 既存の異常報告の位置を、共通のミニマップピッカーで変更し、
+        // 新しい座標をバックエンドへ同期する。
+        window.editAnomalyLocation = function(id) {
+            const anomaly = reportedAnomalies.find(a => a.id === id);
+            if (!anomaly) return;
+
+            openLocationPicker(anomaly.lat, anomaly.lng, (lat, lng) => {
+                anomaly.lat = lat;
+                anomaly.lng = lng;
+                anomaly.sector = getSectorName(lat, lng);
+
+                saveDataToStorage();
+                updateAnomalyOnBackend(anomaly); // Sync to backend -> Telegram push / バックエンドへ同期 -> Telegram通知
+                renderMapMarkers();
+                renderAnomaliesFeed();
+            });
+        };
+
+        // --- 8. ANOMALIES FEED LOGIC ---
+        
+        window.toggleCustomThreat = function(selectedValue) {
+            const customGroup = document.getElementById('custom-threat-group');
+            if (selectedValue === 'Other') {
+                customGroup.style.display = 'block';
+                document.getElementById('anomaly-threat-custom').required = true;
+            } else {
+                customGroup.style.display = 'none';
+                document.getElementById('anomaly-threat-custom').required = false;
+                document.getElementById('anomaly-threat-custom').value = '';
+            }
+        };
+
+        function renderAnomaliesFeed() {
+            const feed = document.getElementById('anomalies-feed');
+            if (!feed) return;
+            if (reportedAnomalies.length === 0) {
+                feed.innerHTML = '<p style="color: #666; font-size: 13px;">No anomalies reported.</p>';
+                return;
+            }
+
+            let html = '';
+            reportedAnomalies.forEach(item => {
+                let badgeClass = item.severity === 'Critical' ? 'badge-high' : (item.severity === 'Medium' ? 'badge-med' : 'badge-low');
+                html += `
+                    <div class="anomaly-card" onclick="selectAnomaly(${item.id})">
+                        <img src="${item.photo}" class="anomaly-img" alt="Anomaly">
+                        <div class="anomaly-info">
+                            <div class="anomaly-header">
+                                <span>${item.species}</span>
+                                <span class="badge ${badgeClass}">${item.severity}</span>
+                            </div>
+                            <div style="font-family: monospace; color: #555; margin-bottom: 3px;">📍 [${item.sector}] ${item.lat}°N, ${item.lng}°E</div>
+                            <div style="color: #333; margin-bottom: 4px;">${item.notes}</div>
+                            <div style="display:flex; gap: 6px;">
+                                <button type="button" class="btn btn-pick" style="margin: 0; padding: 2px 6px; font-size: 10px; width: auto;" onclick="event.stopPropagation(); editAnomalyLocation(${item.id});">🗺️ Change Location / 位置変更</button>
+                                <button type="button" class="btn btn-danger" style="margin: 0; padding: 2px 6px; font-size: 10px; width: auto;" onclick="event.stopPropagation(); deleteAnomaly(${item.id});">🗑️ Delete / 削除</button>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            });
+            feed.innerHTML = html;
+        }
+
+        window.submitAnomalyReport = async function(e) {
+            e.preventDefault();
+            let species = document.getElementById('anomaly-species').value;
+            if (species === 'Other') {
+                const customThreat = document.getElementById('anomaly-threat-custom').value.trim();
+                species = customThreat || 'Unspecified Threat / 不明な脅威';
+            }
+            const severity = document.getElementById('anomaly-severity').value;
+            const lat = parseFloat(document.getElementById('anomaly-lat').value);
+            const lng = parseFloat(document.getElementById('anomaly-lng').value);
+            const sector = document.getElementById('anomaly-sector').value || getSectorName(lat, lng);
+            const notes = document.getElementById('anomaly-notes').value;
+            const photo = document.getElementById('anomaly-photo').value;
+
+            const newAnomaly = { id: Date.now(), species, severity, lat, lng, sector, notes, photo };
+            reportedAnomalies.unshift(newAnomaly);
+
+            saveDataToStorage();
+            renderMapMarkers();
+            renderAnomaliesFeed();
+
+            document.getElementById('reportAnomalyForm').reset();
+            toggleCustomThreat('Reset');
+            selectAnomaly(newAnomaly.id);
+
+            // Sync to backend -> Telegram push / バックエンドへ同期 -> Telegram通知
+            // Swap the temporary local id (Date.now()) for the backend's
+            // real id once it comes back, so "Change Location"/"Delete" on
+            // this card later hit the correct backend record.
+            // バックエンドから実IDが返り次第、仮のローカルID(Date.now())を
+            // 置き換える。後の「位置変更」「削除」が正しいレコードを
+            // 参照できるようにするため。
+            const backendId = await saveAnomalyToBackend(newAnomaly);
+            if (backendId !== null && backendId !== newAnomaly.id) {
+                newAnomaly.id = backendId;
+                saveDataToStorage();
+                renderAnomaliesFeed();
+            }
+        };
+
+        window.openModal = id => document.getElementById(id).style.display = 'flex';
+        window.closeModal = id => document.getElementById(id).style.display = 'none';
+        window.openAddNodeModal = () => openModal('addNodeModal');
+
+
+        // --- Initialize Sync when the window loads / ウィンドウ読み込み時に同期を初期化する ---
+        window.addEventListener('DOMContentLoaded', () => {
+            renderAnomaliesFeed(); // Load local anomalies immediately
+            fetchNodes(); // Call backend to pull node data and render UI
+        });
+
+    </script>
+</body>
+</html>

@@ -64,7 +64,7 @@ This is an early-stage, independently built prototype. Every component is labell
 
 | Component | Status | Notes |
 |---|---|---|
-| LoRa point-to-point UART link (XIAO ESP32S3 + E22-900T22D ↔ E22-900T22D on a PC via USB-TTL) | **Built & tested** | Bench tested; field tested in Losiny Ostrov forest park (Moscow): two-way packets delivered up to ~500 m over mixed open/wooded terrain |
+| LoRa point-to-point UART link (XIAO ESP32S3 + E22-900T22D ↔ E22-900T22D on a PC via USB-TTL) | **Built & tested** | Bench tested; field tested in Pokrovskoye-Streshnevo forest park (Moscow): two-way packets delivered up to ~150 m over mixed open/wooded terrain |
 | Per-packet RSSI logging | **Built & tested** | RSSI-byte option enabled in the module via config mode |
 | Packet Delivery Ratio (PDR) tracking | **Built & tested** | Sequential packet numbers, PC-side beacon script |
 | microSD logging | **Built & tested** | Session-numbered files, timestamps relative to boot |
@@ -75,7 +75,7 @@ This is an early-stage, independently built prototype. Every component is labell
 | Solar / battery autonomy | **Conceptual** | Power consumption not yet measured |
 | RTC / GPS | **Conceptual** | Not onboard; log time is relative to boot only |
 | LINE version of the field-operator bot | **Conceptual** | Planned for use in Japan (see roadmap) |
-| Long-range, durability and power testing | **Not yet done** | Only one ~500 m field test so far; a systematic RSSI-vs-distance and PDR-vs-distance dataset is in progress |
+| Long-range, durability and power testing | **Not yet done** | Only one ~150 m field test so far; a systematic RSSI-vs-distance and PDR-vs-distance dataset is in progress |
 
 ### Features
 
@@ -199,7 +199,7 @@ flowchart LR
 
 | 要素 | 状況 | 備考 |
 |---|---|---|
-| LoRa 1対1 UART通信(XIAO ESP32S3 + E22-900T22D ↔ USB-TTL経由でPCに接続したE22-900T22D) | **実装・実テスト済み** | ベンチテストに加え、モスクワのロシーヌイ・オストロフ森林公園で、開けた場所と樹木が混在する地形において約500mまで双方向のパケット到達を確認 |
+| LoRa 1対1 UART通信(XIAO ESP32S3 + E22-900T22D ↔ USB-TTL経由でPCに接続したE22-900T22D) | **実装・実テスト済み** | ベンチテストに加え、モスクワのポクロフスコエ・ストレシュネヴォ公園で、開けた場所と樹木が混在する地形において約150mまで双方向のパケット到達を確認 |
 | パケットごとのRSSI記録 | **実装・実テスト済み** | 設定モードでモジュールのRSSIバイト出力を有効化 |
 | パケット到達率(PDR)の集計 | **実装・実テスト済み** | 連番パケットとPC側ビーコンスクリプトによる |
 | microSDへのログ記録 | **実装・実テスト済み** | 起動セッション番号付き、時刻は起動からの相対時間 |
@@ -210,7 +210,7 @@ flowchart LR
 | ソーラー/バッテリーによる自律稼働 | **構想段階** | 消費電力は未測定 |
 | RTC / GPS | **構想段階** | 未搭載のため、ログ時刻は起動からの相対時間のみ |
 | 現場オペレーター向けLINE版ボット | **構想段階** | 日本での利用を想定(今後の計画を参照) |
-| 長距離・耐久性・消費電力の試験 | **未実施** | 実地試験は約500mの1回のみ。距離とRSSI/PDRの体系的なデータ収集を進行中 |
+| 長距離・耐久性・消費電力の試験 | **未実施** | 実地試験は約150mの1回のみ。距離とRSSI/PDRの体系的なデータ収集を進行中 |
 
 ### 主な機能
 
@@ -334,7 +334,7 @@ flowchart LR
 
 | Компонент | Статус | Примечания |
 |---|---|---|
-| LoRa-канал точка-точка по UART (XIAO ESP32S3 + E22-900T22D ↔ E22-900T22D на ПК через USB-TTL) | **Сделано и проверено** | Стендовые тесты, а также полевой тест в лесопарке «Лосиный остров» (Москва): двусторонняя доставка пакетов до ~500 м на смешанной местности (открытые участки и лес) |
+| LoRa-канал точка-точка по UART (XIAO ESP32S3 + E22-900T22D ↔ E22-900T22D на ПК через USB-TTL) | **Сделано и проверено** | Стендовые тесты, а также полевой тест в лесопарке «Покровское-Стрешнево» (Москва): двусторонняя доставка пакетов до ~150 м на смешанной местности (открытые участки и лес) |
 | Запись RSSI по каждому пакету | **Сделано и проверено** | Опция вывода байта RSSI включена в модуле через режим конфигурации |
 | Подсчёт доли доставленных пакетов (PDR) | **Сделано и проверено** | По сквозной нумерации пакетов, скрипт-маяк на стороне ПК |
 | Логирование на microSD | **Сделано и проверено** | Файлы с номером сессии, время относительно старта |
@@ -345,7 +345,7 @@ flowchart LR
 | Автономность от солнца и аккумулятора | **Концепция** | Энергопотребление ещё не измерено |
 | RTC / GPS | **Концепция** | Нет на борту, время в логах только относительно старта |
 | LINE-версия бота для полевых операторов | **Концепция** | Запланирована для работы в Японии (см. планы) |
-| Тесты дальности, долговечности и энергопотребления | **Ещё не сделано** | Пока один полевой тест на ~500 м; идёт сбор систематических данных «RSSI от расстояния» и «PDR от расстояния» |
+| Тесты дальности, долговечности и энергопотребления | **Ещё не сделано** | Пока один полевой тест на ~150 м; идёт сбор систематических данных «RSSI от расстояния» и «PDR от расстояния» |
 
 ### Возможности
 

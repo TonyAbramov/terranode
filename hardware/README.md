@@ -63,7 +63,7 @@ The PC-side node sends numbered test packets; the gateway logs them with RSSI an
 
 | Component | Status | Notes |
 |---|---|---|
-| LoRa point-to-point UART link | **Built & tested** | Bench tested; field tested in Losiny Ostrov forest park (Moscow), up to ~500 m over mixed open/wooded terrain |
+| LoRa point-to-point UART link | **Built & tested** | Bench tested; field tested in Pokrovskoye-Streshnevo forest park (Moscow), up to ~150 m over mixed open/wooded terrain |
 | microSD logging | **Built & tested** | Session-numbered files, timestamps relative to boot |
 | Per-packet RSSI logging | **Built & tested** | RSSI-byte option enabled in the module via config mode |
 | Packet Delivery Ratio (PDR) tracking | **Built & tested** | Sequential packet numbers |
@@ -103,7 +103,7 @@ Run the RSSI setup sketch once per module before first use (it is a separate Pla
 
 ### Field test summary
 
-Initial range test in Losiny Ostrov forest park (Moscow): two-way communication confirmed up to approximately 500 m across a mix of open ground and forest cover. A systematic RSSI-vs-distance and PDR-vs-distance dataset is in progress.
+Initial range test in Pokrovskoye-Streshnevo forest park (Moscow): two-way communication confirmed up to approximately 150 m across a mix of open ground and forest cover. A systematic RSSI-vs-distance and PDR-vs-distance dataset is in progress.
 
 ### Power and deployment notes
 
@@ -177,7 +177,7 @@ PC側ノードが連番付きテストパケットを送信し、ゲートウェ
 
 | 要素 | 状況 | 備考 |
 |---|---|---|
-| LoRa 1対1 UART通信 | **実装・実テスト済み** | ベンチテストに加え、モスクワのロシーヌイ・オストロフ森林公園で、開けた場所と樹木が混在する地形において約500mまで確認 |
+| LoRa 1対1 UART通信 | **実装・実テスト済み** | ベンチテストに加え、モスクワのポクロフスコエ・ストレシュネヴォ公園で、開けた場所と樹木が混在する地形において約150mまで確認 |
 | microSDへのログ記録 | **実装・実テスト済み** | 起動セッション番号付き、時刻は起動からの相対時間 |
 | パケットごとのRSSI記録 | **実装・実テスト済み** | 設定モードでモジュールのRSSIバイト出力を有効化 |
 | パケット到達率(PDR)の集計 | **実装・実テスト済み** | 連番パケットによる |
@@ -217,7 +217,7 @@ pio run -t upload                  # ゲートウェイのファームウェア�
 
 ### 実地テストの概要
 
-モスクワのロシーヌイ・オストロフ森林公園での初期の通信距離テストで、開けた場所と森林の混在する地形において、約500mまでの双方向通信を確認しました。距離とRSSI/PDRの体系的なデータ収集を進めています。
+モスクワのポクロフスコエ・ストレシュネヴォ公園での初期の通信距離テストで、開けた場所と森林の混在する地形において、約150mまでの双方向通信を確認しました。距離とRSSI/PDRの体系的なデータ収集を進めています。
 
 ### 電源・展開に関するメモ
 
@@ -291,7 +291,7 @@ flowchart LR
 
 | Компонент | Статус | Примечания |
 |---|---|---|
-| LoRa-канал точка-точка по UART | **Сделано и проверено** | Стендовые тесты; полевой тест в лесопарке «Лосиный остров» (Москва), до ~500 м на смешанной местности (открытые участки и лес) |
+| LoRa-канал точка-точка по UART | **Сделано и проверено** | Стендовые тесты; полевой тест в лесопарке «Покровское-Стрешнево» (Москва), до ~150 м на смешанной местности (открытые участки и лес) |
 | Логирование на microSD | **Сделано и проверено** | Файлы с номером сессии, время относительно старта |
 | Запись RSSI по каждому пакету | **Сделано и проверено** | Опция вывода байта RSSI включена в модуле через режим конфигурации |
 | Подсчёт доли доставленных пакетов (PDR) | **Сделано и проверено** | По сквозной нумерации пакетов |
@@ -331,7 +331,7 @@ pio run -t upload                  # сборка и прошивка шлюза
 
 ### Итоги полевого теста
 
-Первый тест дальности в лесопарке «Лосиный остров» (Москва): двусторонняя связь подтверждена примерно до 500 м на смешанной местности (открытые участки и лес). Систематический набор данных «RSSI от расстояния» и «PDR от расстояния» собирается.
+Первый тест дальности в лесопарке «Покровское-Стрешнево» (Москва): двусторонняя связь подтверждена примерно до 150 м на смешанной местности (открытые участки и лес). Систематический набор данных «RSSI от расстояния» и «PDR от расстояния» собирается.
 
 ### Заметки по питанию и развёртыванию
 

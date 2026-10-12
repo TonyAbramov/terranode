@@ -70,6 +70,7 @@ This is an early-stage, independently built prototype. Every component is labell
 - **Built & tested**: implemented and verified on the bench or in the field
 - **Prototype**: exists, but not integrated or not validated
 - **Conceptual**: designed or planned, not implemented
+
 | Component | Status | Notes |
 |---|---|---|
 | LoRa point-to-point UART link (XIAO ESP32S3 + E22-900T22D ↔ E22-900T22D on a PC via USB-TTL) | **Built & tested** | Bench tested; field tested in Pokrovskoye-Streshnevo forest park (Moscow): two-way packets delivered up to ~460 m over mixed open/wooded terrain |
@@ -218,6 +219,7 @@ TerraNodeのノードは2種類あり、1つのネットワークで画像と計
 - **実装・実テスト済み**:実装し、ベンチまたは野外で動作を確認済み
 - **プロトタイプ**:存在するが、統合または検証が未完了
 - **構想段階**:設計・計画のみで未実装
+
 | 要素 | 状況 | 備考 |
 |---|---|---|
 | LoRa 1対1 UART通信(XIAO ESP32S3 + E22-900T22D ↔ USB-TTL経由でPCに接続したE22-900T22D) | **実装・実テスト済み** | ベンチテストに加え、モスクワのポクロフスコエ・ストレシュネヴォ公園で、開けた場所と樹木が混在する地形において約460mまで双方向のパケット到達を確認 |
@@ -273,7 +275,6 @@ terranode/
 ├── LICENSE
 └── README.md
 ```
-
  
 ### 使用ハードウェア
  

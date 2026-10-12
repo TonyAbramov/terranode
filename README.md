@@ -17,8 +17,6 @@
 
 Ecologists today mostly rely on two approaches: satellite imagery / GIS (wide, but coarse and infrequent) or on-foot field surveys (detailed, but slow and labour-intensive). TerraNode aims at the gap between them: small, cheap, low-power nodes that keep observing a site and pass data on hop by hop, **without needing cellular coverage or a nearby server**.
 
-Classic CCTV needs LTE and local infrastructure, whereas LoRa runs in licence-exempt spectrum, so a small network can in principle be deployed on a slope, in a forest or in a reserve within a day or two, without negotiating coverage with a telecom operator.
-
 ### What's in this repository
 
 TerraNode has two halves that are developed together and will eventually meet in the middle:
@@ -38,7 +36,7 @@ Solid arrows are implemented and tested; dashed arrows are planned.
 ```mermaid
 flowchart LR
   subgraph field["Field"]
-    N["Sensor / camera<br/>nodes<br/>(mesh: planned)"]
+    N["Camera / Modular Sensor nodes<br/>(TKE / Piezo / SDI-12)<br/>(mesh: planned)"]
   end
   G["LoRa gateway<br/>XIAO ESP32S3<br/>+ E22 + SD"]
   subgraph op["Operator side"]
@@ -54,44 +52,57 @@ flowchart LR
   B <-.->|"port for use in Japan"| L
 ```
 
+### Node types
+ 
+TerraNode nodes come in two kinds, so one network can combine images and measurements:
+ 
+| Node type | What it does | Hardware | Status |
+|---|---|---|---|
+| **Camera node** | Captures images at the site, for example to track an invasive plant | ESP32-CAM class board (the XIAO ESP32S3 Sense used for the gateway tests also has a camera) | **Prototype**: camera hardware present, capture pipeline not integrated |
+| **Modular sensor node** | Measures environmental parameters and sends compact periodic packets | ESP32 with interchangeable sensors: **TKE / Piezo / SDI-12** | **Conceptual**: not built yet |
+ 
+The dashboard and the Telegram bot already tell node types apart (for example ESP32-CAM and ESP32 sensors) and show each node's purpose, such as soil moisture and temperature or weather. Today these nodes are entered by hand.
+
 ### Project status
-
+ 
 This is an early-stage, independently built prototype. Every component is labelled honestly:
-
+ 
 - **Built & tested**: implemented and verified on the bench or in the field
 - **Prototype**: exists, but not integrated or not validated
 - **Conceptual**: designed or planned, not implemented
-
 | Component | Status | Notes |
 |---|---|---|
-| LoRa point-to-point UART link (XIAO ESP32S3 + E22-900T22D ↔ E22-900T22D on a PC via USB-TTL) | **Built & tested** | Bench tested; field tested in Pokrovskoye-Streshnevo forest park (Moscow): two-way packets delivered up to ~150 m over mixed open/wooded terrain |
+| LoRa point-to-point UART link (XIAO ESP32S3 + E22-900T22D ↔ E22-900T22D on a PC via USB-TTL) | **Built & tested** | Bench tested; field tested in Pokrovskoye-Streshnevo forest park (Moscow): two-way packets delivered up to ~460 m over mixed open/wooded terrain |
 | Per-packet RSSI logging | **Built & tested** | RSSI-byte option enabled in the module via config mode |
 | Packet Delivery Ratio (PDR) tracking | **Built & tested** | Sequential packet numbers, PC-side beacon script |
 | microSD logging | **Built & tested** | Session-numbered files, timestamps relative to boot |
 | Dashboard, REST backend, Telegram bot | **Built & tested (locally)** | Run together on a PC, operating on **manually entered** node data |
 | Live gateway → dashboard data flow | **Prototype / next step** | Dashboard currently shows manual/mock data, not real sensor state |
 | Onboard camera capture and image transmission | **Prototype** | Hardware present (XIAO ESP32S3 Sense); capture pipeline not integrated |
+| Camera / sensor node types in the dashboard and bot | **Built & tested (locally)** | Type and purpose are shown; nodes are entered manually |
+| Modular sensor node (ESP32 + TKE / Piezo / SDI-12) | **Conceptual** | Not built yet; no sensor firmware |
 | Multi-node LoRa mesh | **Conceptual** | Only a single point-to-point link so far |
 | Solar / battery autonomy | **Conceptual** | Power consumption not yet measured |
 | RTC / GPS | **Conceptual** | Not onboard; log time is relative to boot only |
 | LINE version of the field-operator bot | **Conceptual** | Planned for use in Japan (see roadmap) |
-| Long-range, durability and power testing | **Not yet done** | Only one ~150 m field test so far; a systematic RSSI-vs-distance and PDR-vs-distance dataset is in progress |
+| Long-range, durability and power testing | **Not yet done** | Only one ~460 m field test so far; a systematic RSSI-vs-distance and PDR-vs-distance dataset is in progress |
 
 ### Features
-
+ 
 **Hardware / firmware**
 - Reads incoming LoRa packets over UART and parses the appended RSSI byte
 - Tracks PDR from sequential packet numbers
 - Logs everything to microSD; LED heartbeat / receive indication
 - A PC-side beacon script sends numbered test packets at a fixed interval for controlled range testing
-
 **Dashboard and bot**
 - 12×12 sector grid, identical in the dashboard, backend and bot (a coordinate always maps to the same sector)
 - Add / edit / move / delete nodes and the gateway with a click-to-pick mini-map
+- Camera and sensor node types (for example ESP32-CAM and ESP32 sensors), each with its own purpose
 - Eco-anomaly reports (species, severity, GPS, notes, photo/video) from the dashboard or Telegram
 - Anomaly lifecycle: **Reported → Investigating → Resolved**
 - Real-time two-way sync between dashboard and Telegram
 - Every bot message is shown as **English / 日本語**
+
 
 ### Repository layout
 
@@ -117,20 +128,22 @@ terranode/
 ```
 
 ### Hardware
-
+ 
 - Seeed Studio XIAO ESP32S3 (Sense variant: camera + microSD slot)
 - 2× Ebyte E22-900T22D LoRa modules (868 MHz band)
 - USB-to-TTL adapter (CP2102) for the PC-side test node
+- Planned, not built yet: ESP32-based modular sensor nodes (TKE / Piezo / SDI-12)
 
 ### Roadmap
-
+ 
 1. Connect live gateway output to the dashboard, so it shows real node state
 2. Complete the systematic RSSI-vs-distance and PDR-vs-distance dataset; measure power consumption
 3. Camera capture and periodic image transmission
-4. Multi-node mesh relay
-5. Solar charging and battery autonomy tests
-6. RTC / GPS for real timestamps and location tagging
-7. Port the field-operator bot to LINE (Messaging API) for deployment in Japan, where LINE is the everyday messenger; the Telegram version stays available
+4. Modular sensor node: ESP32 firmware with TKE / Piezo / SDI-12 sensor support and compact LoRa sensor packets
+5. Multi-node mesh relay
+6. Solar charging and battery autonomy tests
+7. RTC / GPS for real timestamps and location tagging
+8. Port the field-operator bot to LINE (Messaging API) for deployment in Japan, where LINE is the everyday messenger; the Telegram version stays available
 
 ### Research context
 
@@ -151,9 +164,7 @@ Anton Abramov
 ### TerraNodeとは
 
 生態学の現場では、主に衛星画像・GIS(広域だが粗く更新頻度が低い)と、徒歩による現地調査(詳細だが時間と労力がかかる)の二つが使われています。TerraNodeはその中間を埋めることを目指しています。小型・低コスト・低消費電力のノードが調査地を継続的に観測し、データをホップごとに中継します。**携帯電話の通信圏や近くのサーバーは不要**です。
-
-従来の監視カメラはLTEや現地のインフラを必要としますが、LoRaは免許不要の周波数帯を使うため、通信事業者との調整なしに、斜面・森林・保護区などに小規模なネットワークを1〜2日で展開できる可能性があります。
-
+ 
 ### このリポジトリの内容
 
 TerraNodeは、並行して開発している二つの部分で構成され、将来的に接続されます。
@@ -173,7 +184,7 @@ TerraNodeは、並行して開発している二つの部分で構成され、�
 ```mermaid
 flowchart LR
   subgraph field["現場"]
-    N["センサー/カメラ<br/>ノード<br/>(メッシュ: 計画中)"]
+    N["カメラ / モジュラーセンサーノード<br/>(TKE / Piezo / SDI-12)<br/>(メッシュ: 計画中)"]
   end
   G["LoRaゲートウェイ<br/>XIAO ESP32S3<br/>+ E22 + SD"]
   subgraph op["オペレーター側"]
@@ -189,40 +200,52 @@ flowchart LR
   B <-.->|"日本での利用に向けて移植"| L
 ```
 
+### ノードの種類
+ 
+TerraNodeのノードは2種類あり、1つのネットワークで画像と計測値を組み合わせられます。
+ 
+| ノードの種類 | 内容 | ハードウェア | 状況 |
+|---|---|---|---|
+| **カメラノード** | 調査地で画像を撮影(例:外来植物の追跡) | ESP32-CAM系ボード(ゲートウェイの試験に使っているXIAO ESP32S3 Senseもカメラを搭載) | **プロトタイプ**:カメラは搭載済み、撮影パイプライン未統合 |
+| **モジュラーセンサーノード** | 環境パラメータを計測し、コンパクトな定期パケットを送信 | 交換可能なセンサーを備えたESP32:**TKE / Piezo / SDI-12** | **構想段階**:未製作 |
+ 
+ダッシュボードとTelegramボットは、すでにノードの種類(例:ESP32-CAMとESP32センサー)を区別し、土壌水分・温度や気象といった各ノードの目的を表示します。現時点では、これらのノードは手動入力です。
+
 ### 開発状況
-
+ 
 個人で開発している初期段階のプロトタイプです。各要素の状況を誇張なく区別して記載します。
-
+ 
 - **実装・実テスト済み**:実装し、ベンチまたは野外で動作を確認済み
 - **プロトタイプ**:存在するが、統合または検証が未完了
 - **構想段階**:設計・計画のみで未実装
-
 | 要素 | 状況 | 備考 |
 |---|---|---|
-| LoRa 1対1 UART通信(XIAO ESP32S3 + E22-900T22D ↔ USB-TTL経由でPCに接続したE22-900T22D) | **実装・実テスト済み** | ベンチテストに加え、モスクワのポクロフスコエ・ストレシュネヴォ公園で、開けた場所と樹木が混在する地形において約150mまで双方向のパケット到達を確認 |
+| LoRa 1対1 UART通信(XIAO ESP32S3 + E22-900T22D ↔ USB-TTL経由でPCに接続したE22-900T22D) | **実装・実テスト済み** | ベンチテストに加え、モスクワのポクロフスコエ・ストレシュネヴォ公園で、開けた場所と樹木が混在する地形において約460mまで双方向のパケット到達を確認 |
 | パケットごとのRSSI記録 | **実装・実テスト済み** | 設定モードでモジュールのRSSIバイト出力を有効化 |
 | パケット到達率(PDR)の集計 | **実装・実テスト済み** | 連番パケットとPC側ビーコンスクリプトによる |
 | microSDへのログ記録 | **実装・実テスト済み** | 起動セッション番号付き、時刻は起動からの相対時間 |
 | ダッシュボード、RESTバックエンド、Telegramボット | **実装・ローカルで動作確認済み** | PC上で連携動作。ただし**手動入力**のノードデータで動作 |
 | ゲートウェイ → ダッシュボードの実データ連携 | **プロトタイプ / 次のステップ** | 現状は手動・モックデータで、実際のセンサー状態ではない |
 | 内蔵カメラでの撮影・画像送信 | **プロトタイプ** | ハードウェア(XIAO ESP32S3 Sense)は搭載済み、撮影パイプライン未統合 |
+| ダッシュボードとボットでのカメラ/センサーノードの種類 | **実装・ローカルで動作確認済み** | 種類と目的を表示。ノードは手動入力 |
+| モジュラーセンサーノード(ESP32 + TKE / Piezo / SDI-12) | **構想段階** | 未製作。センサー用ファームウェアなし |
 | 複数ノードのLoRaメッシュ | **構想段階** | 現時点では1対1通信のみ |
 | ソーラー/バッテリーによる自律稼働 | **構想段階** | 消費電力は未測定 |
 | RTC / GPS | **構想段階** | 未搭載のため、ログ時刻は起動からの相対時間のみ |
 | 現場オペレーター向けLINE版ボット | **構想段階** | 日本での利用を想定(今後の計画を参照) |
-| 長距離・耐久性・消費電力の試験 | **未実施** | 実地試験は約150mの1回のみ。距離とRSSI/PDRの体系的なデータ収集を進行中 |
+| 長距離・耐久性・消費電力の試験 | **未実施** | 実地試験は約460mの1回のみ。距離とRSSI/PDRの体系的なデータ収集を進行中 |
 
 ### 主な機能
-
+ 
 **ハードウェア / ファームウェア**
 - UARTで受信したLoRaパケットを解析し、付加されたRSSIバイトを取得
 - 連番パケットからPDRを算出
 - すべてmicroSDに記録。LEDでハートビート/受信を表示
 - PC側のビーコンスクリプトが一定間隔で連番テストパケットを送信し、通信距離を制御された条件で測定
-
 **ダッシュボードとボット**
 - 12×12セクターグリッド(ダッシュボード・バックエンド・ボットで同一。座標は常に同じセクターに対応)
 - ミニマップのクリック操作で、ノードとゲートウェイの追加・編集・移動・削除
+- カメラ/センサーのノード種類(例:ESP32-CAMとESP32センサー)と、ノードごとの目的
 - ダッシュボードまたはTelegramから環境異常を報告(対象種、脅威レベル、GPS、メモ、写真/動画)
 - 異常のステータス管理:**報告済み → 調査中 → 解決済み**
 - ダッシュボードとTelegramの双方向リアルタイム同期
@@ -251,21 +274,23 @@ terranode/
 └── README.md
 ```
 
+ 
 ### 使用ハードウェア
-
+ 
 - Seeed Studio XIAO ESP32S3(Senseバリアント:カメラ・microSDスロット内蔵)
 - Ebyte E22-900T22D LoRaモジュール ×2(868MHz帯)
 - USB-TTL変換アダプタ(CP2102、PC側テストノード用)
-
+- 計画中・未製作:ESP32ベースのモジュラーセンサーノード(TKE / Piezo / SDI-12)
 ### 今後の計画
-
+ 
 1. ゲートウェイの実データをダッシュボードに接続し、実際のノード状態を表示
 2. 距離とRSSI/PDRの体系的なデータ収集を完了し、消費電力を測定
 3. カメラ撮影と定期的な画像送信
-4. 複数ノードによるメッシュ中継
-5. ソーラー充電とバッテリー自律稼働の試験
-6. RTC/GPSによる実時刻と位置情報の記録
-7. 現場オペレーター向けボットのLINE(Messaging API)版への移植。日本ではLINEが日常的なメッセンジャーであるため、日本での運用を想定。Telegram版も引き続き利用可能
+4. モジュラーセンサーノード:TKE / Piezo / SDI-12センサーに対応したESP32ファームウェアと、コンパクトなLoRaセンサーパケット
+5. 複数ノードによるメッシュ中継
+6. ソーラー充電とバッテリー自律稼働の試験
+7. RTC/GPSによる実時刻と位置情報の記録
+8. 現場オペレーター向けボットのLINE(Messaging API)版への移植。日本ではLINEが日常的なメッセンジャーであるため、日本での運用を想定。Telegram版も引き続き利用可能
 
 ### 研究の背景
 
@@ -287,8 +312,6 @@ MITライセンス
 
 Экологи сегодня в основном пользуются двумя подходами: спутниковые снимки и ГИС (охват широкий, но детализация низкая и обновляется редко) или пешие полевые обследования (детально, но медленно и трудозатратно). TerraNode нацелен на промежуток между ними: небольшие дешёвые энергоэффективные узлы, которые постоянно наблюдают за участком и передают данные от узла к узлу, **без сотовой связи и без сервера поблизости**.
 
-Обычному видеонаблюдению нужны LTE и местная инфраструктура, а LoRa работает в безлицензионном диапазоне. Поэтому небольшую сеть в принципе можно развернуть на склоне, в лесу или в заповеднике за день-два, не договариваясь с оператором связи о покрытии.
-
 ### Что в репозитории
 
 TerraNode состоит из двух частей, которые развиваются параллельно и в перспективе будут соединены:
@@ -301,14 +324,12 @@ TerraNode состоит из двух частей, которые развив
 
 Инструкции по установке и запуску лежат в README каждой части (на английском и японском); эта страница даёт общий обзор.
 
-### Архитектура
-
 Сплошные стрелки означают «реализовано и проверено», пунктирные «в планах».
-
+ 
 ```mermaid
 flowchart LR
   subgraph field["Поле"]
-    N["Узлы: датчики<br/>и камеры<br/>(меш: в планах)"]
+    N["Камера / модульные сенсорные узлы<br/>(TKE / Piezo / SDI-12)<br/>(меш: в планах)"]
   end
   G["LoRa-шлюз<br/>XIAO ESP32S3<br/>+ E22 + SD"]
   subgraph op["Сторона оператора"]
@@ -324,6 +345,17 @@ flowchart LR
   B <-.->|"перенос для работы в Японии"| L
 ```
 
+### Типы узлов
+ 
+Узлы TerraNode бывают двух видов, поэтому одна сеть может сочетать изображения и измерения:
+ 
+| Тип узла | Что делает | Оборудование | Статус |
+|---|---|---|---|
+| **Узел с камерой** | Снимает изображения на участке, например для слежения за инвазивным растением | Плата класса ESP32-CAM (у XIAO ESP32S3 Sense, на котором проверялся шлюз, тоже есть камера) | **Прототип**: железо с камерой есть, пайплайн съёмки не интегрирован |
+| **Модульный сенсорный узел** | Измеряет параметры среды и отправляет компактные периодические пакеты | ESP32 со сменными датчиками: **TKE / Piezo / SDI-12** | **Концепция**: ещё не собран |
+ 
+Дашборд и Telegram-бот уже различают типы узлов (например, ESP32-CAM и ESP32 с датчиками) и показывают назначение каждого узла, такое как влажность и температура почвы или погода. Сейчас эти узлы вводятся вручную.
+
 ### Статус проекта
 
 Это ранний прототип, который я делаю самостоятельно. Каждый компонент описан честно:
@@ -334,18 +366,20 @@ flowchart LR
 
 | Компонент | Статус | Примечания |
 |---|---|---|
-| LoRa-канал точка-точка по UART (XIAO ESP32S3 + E22-900T22D ↔ E22-900T22D на ПК через USB-TTL) | **Сделано и проверено** | Стендовые тесты, а также полевой тест в лесопарке «Покровское-Стрешнево» (Москва): двусторонняя доставка пакетов до ~150 м на смешанной местности (открытые участки и лес) |
+| LoRa-канал точка-точка по UART (XIAO ESP32S3 + E22-900T22D ↔ E22-900T22D на ПК через USB-TTL) | **Сделано и проверено** | Стендовые тесты, а также полевой тест в лесопарке «Покровское-Стрешнево» (Москва): двусторонняя доставка пакетов до ~460 м на смешанной местности (открытые участки и лес) |
 | Запись RSSI по каждому пакету | **Сделано и проверено** | Опция вывода байта RSSI включена в модуле через режим конфигурации |
 | Подсчёт доли доставленных пакетов (PDR) | **Сделано и проверено** | По сквозной нумерации пакетов, скрипт-маяк на стороне ПК |
 | Логирование на microSD | **Сделано и проверено** | Файлы с номером сессии, время относительно старта |
 | Дашборд, REST-бэкенд, Telegram-бот | **Сделано, проверено локально** | Работают вместе на ПК, но на **вручную введённых** данных узлов |
 | Живой поток данных шлюз → дашборд | **Прототип / следующий шаг** | Сейчас дашборд показывает ручные/тестовые данные, а не реальное состояние датчиков |
 | Съёмка встроенной камерой и передача кадров | **Прототип** | Железо есть (XIAO ESP32S3 Sense), пайплайн съёмки не интегрирован |
+| Типы узлов (камера / датчики) в дашборде и боте | **Сделано, проверено локально** | Показываются тип и назначение; узлы вводятся вручную |
+| Модульный сенсорный узел (ESP32 + TKE / Piezo / SDI-12) | **Концепция** | Ещё не собран; прошивки для датчиков нет |
 | LoRa-меш из нескольких узлов | **Концепция** | Пока только один канал точка-точка |
 | Автономность от солнца и аккумулятора | **Концепция** | Энергопотребление ещё не измерено |
 | RTC / GPS | **Концепция** | Нет на борту, время в логах только относительно старта |
 | LINE-версия бота для полевых операторов | **Концепция** | Запланирована для работы в Японии (см. планы) |
-| Тесты дальности, долговечности и энергопотребления | **Ещё не сделано** | Пока один полевой тест на ~150 м; идёт сбор систематических данных «RSSI от расстояния» и «PDR от расстояния» |
+| Тесты дальности, долговечности и энергопотребления | **Ещё не сделано** | Пока один полевой тест на ~460 м; идёт сбор систематических данных «RSSI от расстояния» и «PDR от расстояния» |
 
 ### Возможности
 
@@ -397,10 +431,11 @@ terranode/
 1. Подключить живые данные шлюза к дашборду, чтобы он показывал реальное состояние узлов
 2. Завершить систематический набор данных «RSSI/PDR от расстояния», измерить энергопотребление
 3. Съёмка камерой и периодическая передача изображений
-4. Ретрансляция в меш-сети из нескольких узлов
-5. Тесты солнечной зарядки и автономной работы от аккумулятора
-6. RTC / GPS для реального времени и привязки к местности
-7. Перенос бота для полевых операторов в LINE (Messaging API) для работы в Японии, где LINE является повседневным мессенджером; версия для Telegram остаётся доступной
+4. Модульный сенсорный узел: прошивка ESP32 с поддержкой датчиков TKE / Piezo / SDI-12 и компактные LoRa-пакеты с показаниями
+5. Ретрансляция в меш-сети из нескольких узлов
+6. Тесты солнечной зарядки и автономной работы от аккумулятора
+7. RTC / GPS для реального времени и привязки к местности
+8. Перенос бота для полевых операторов в LINE (Messaging API) для работы в Японии, где LINE является повседневным мессенджером; версия для Telegram остаётся доступной
 
 ### Исследовательский контекст
 
